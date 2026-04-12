@@ -308,7 +308,12 @@ class NdarrayStore(object):
         return isinstance(data, np.ndarray)
 
     def can_write(self, version, symbol, data):
-        return self.can_write_type(data) and not data.dtype.hasobject
+        # hasobject was deprecated and removed in pandas 2.1+
+        has_object = getattr(data.dtype, 'hasobject', None)
+        if has_object is None:
+            # For pandas 2.1+ and numpy 2.0+
+            has_object = data.dtype == np.object_ or data.dtype.kind in ('O', 'U', 'S')
+        return self.can_write_type(data) and not has_object
 
     def _dtype(self, string, metadata=None):
         if metadata is None:
@@ -415,7 +420,12 @@ class NdarrayStore(object):
         if str(dtype) != previous_version['dtype'] or \
                 _fw_pointers_convert_append_to_write(previous_version):
             logger.debug('Converting %s from %s to %s' % (symbol, previous_version['dtype'], str(dtype)))
-            if item.dtype.hasobject:
+            # hasobject was deprecated and removed in pandas 2.1+
+            has_object = getattr(item.dtype, 'hasobject', None)
+            if has_object is None:
+                # For pandas 2.1+ and numpy 2.0+
+                has_object = item.dtype == np.object_ or item.dtype.kind in ('O', 'U', 'S')
+            if has_object:
                 raise UnhandledDtypeException()
             version['dtype'] = str(dtype)
             version['dtype_metadata'] = dict(dtype.metadata or {})
@@ -601,7 +611,12 @@ class NdarrayStore(object):
 
     def write(self, arctic_lib, version, symbol, item, previous_version, dtype=None):
         collection = arctic_lib.get_top_level_collection()
-        if item.dtype.hasobject:
+        # hasobject was deprecated and removed in pandas 2.1+
+        has_object = getattr(item.dtype, 'hasobject', None)
+        if has_object is None:
+            # For pandas 2.1+ and numpy 2.0+
+            has_object = item.dtype == np.object_ or item.dtype.kind in ('O', 'U', 'S')
+        if has_object:
             raise UnhandledDtypeException()
 
         if not dtype:
