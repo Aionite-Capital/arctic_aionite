@@ -589,8 +589,21 @@ class VersionStore(object):
             version['metadata'] = previous_version['metadata']
 
         if handler and hasattr(handler, 'append') and callable(handler.append):
-            handler.append(self._arctic_lib, version, symbol, data,
-                           previous_version, dirty_append=dirty_append, **kwargs)
+            try:
+                handler.append(self._arctic_lib, version, symbol, data,
+                               previous_version, dirty_append=dirty_append, **kwargs)
+            except Exception as e:
+                # Log a big error if the append handler fails
+                logger.error("=" * 80)
+                logger.error("CRITICAL APPEND FAILURE: Failed to append to symbol '%s' in library '%s'",
+                            symbol, self._arctic_lib.get_name())
+                logger.error("Handler: %s", handler.__class__.__name__)
+                logger.error("Error: %s: %s", type(e).__name__, str(e))
+                logger.error("Data will NOT be saved! Version document will NOT be created!")
+                logger.error("This means reading this symbol will fail with NoDataFoundException!")
+                logger.error("=" * 80)
+                # Re-raise the exception so the caller knows the append failed
+                raise
         else:
             raise Exception("Append not implemented for handler %s" % handler)
 
@@ -649,7 +662,20 @@ class VersionStore(object):
                                                    sort=[('version', pymongo.DESCENDING)])
 
         handler = self._write_handler(version, symbol, data, **kwargs)
-        handler.write(self._arctic_lib, version, symbol, data, previous_version, **kwargs)
+        try:
+            handler.write(self._arctic_lib, version, symbol, data, previous_version, **kwargs)
+        except Exception as e:
+            # Log a big error if the write handler fails
+            logger.error("=" * 80)
+            logger.error("CRITICAL WRITE FAILURE: Failed to write symbol '%s' to library '%s'",
+                        symbol, self._arctic_lib.get_name())
+            logger.error("Handler: %s", handler.__class__.__name__)
+            logger.error("Error: %s: %s", type(e).__name__, str(e))
+            logger.error("Data will NOT be saved! Version document will NOT be created!")
+            logger.error("This means reading this symbol will fail with NoDataFoundException!")
+            logger.error("=" * 80)
+            # Re-raise the exception so the caller knows the write failed
+            raise
 
         if prune_previous_version and previous_version:
             self._prune_previous_versions(

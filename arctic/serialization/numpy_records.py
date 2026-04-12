@@ -265,13 +265,38 @@ class PandasSerializer(object):
 
         arrays = []
         for arr, name in zip(ix_vals + column_vals, index_names + columns):
-            arrays.append(_to_primitive(arr, string_max_len,
-                                        forced_dtype=None if forced_dtype is None else forced_dtype[name]))
+            converted_arr = _to_primitive(arr, string_max_len,
+                                        forced_dtype=None if forced_dtype is None else forced_dtype[name])
+            # Ensure the array is truly a numpy array, not a pandas array with extension dtype
+            if hasattr(converted_arr, 'dtype') and hasattr(converted_arr.dtype, 'name') and \
+               'string' in str(converted_arr.dtype.name).lower():
+                # Force conversion to object array
+                converted_arr = np.asarray(converted_arr, dtype=object)
+            arrays.append(converted_arr)
 
         if forced_dtype is None:
-            dtype = np.dtype([(str(x), v.dtype) if len(v.shape) == 1 else (str(x), v.dtype, v.shape[1])
-                              for x, v in zip(names, arrays)],
-                             metadata=metadata)
+            # Build dtype list, ensuring each dtype is numpy-compatible
+            dtype_list = []
+            for x, v in zip(names, arrays):
+                # Get the dtype and ensure it's a valid numpy dtype
+                arr_dtype = v.dtype
+                # Handle pandas extension dtypes (like StringDtype) that numpy can't interpret
+                if hasattr(arr_dtype, 'name') and 'string' in str(arr_dtype.name).lower():
+                    # StringDtype - use object dtype
+                    arr_dtype = np.object_
+                elif not isinstance(arr_dtype, np.dtype):
+                    # Other pandas extension dtypes - try to convert
+                    try:
+                        arr_dtype = np.dtype(arr_dtype.numpy_dtype if hasattr(arr_dtype, 'numpy_dtype') else 'O')
+                    except:
+                        arr_dtype = np.object_
+
+                if len(v.shape) == 1:
+                    dtype_list.append((str(x), arr_dtype))
+                else:
+                    dtype_list.append((str(x), arr_dtype, v.shape[1]))
+
+            dtype = np.dtype(dtype_list, metadata=metadata)
         else:
             dtype = forced_dtype
 
@@ -302,8 +327,11 @@ class PandasSerializer(object):
         """
         i_dtype, f_dtypes = df.index.dtype, df.dtypes
         index_has_object = df.index.dtype == NP_OBJECT_DTYPE
-        fields_with_object = [f for f in df.columns if f_dtypes[f] == NP_OBJECT_DTYPE]
-        if df.empty or (not index_has_object and not fields_with_object):
+        # Also check for StringDtype (pandas 3)
+        index_has_string = hasattr(df.index.dtype, 'name') and 'string' in str(df.index.dtype.name).lower()
+        fields_with_object = [f for f in df.columns if f_dtypes[f] == NP_OBJECT_DTYPE or
+                             (hasattr(f_dtypes[f], 'name') and 'string' in str(f_dtypes[f].name).lower())]
+        if df.empty or (not index_has_object and not index_has_string and not fields_with_object):
             arr, _ = self._to_records(df.iloc[:10])  # only first few rows for performance
             return arr, {}
         # If only the Index has Objects, choose a small slice (two columns if possible,
@@ -313,8 +341,31 @@ class PandasSerializer(object):
         arr, dtype = self._to_records(df_objects_only)
         return arr, {f: dtype[f] for f in dtype.names}
 
+    def _convert_string_dtype_to_object(self, df):
+        """
+        Convert any StringDtype columns (pandas 3) to object dtype for compatibility.
+        Returns a copy if conversion is needed, otherwise returns the original DataFrame.
+        """
+        string_columns = []
+        for col in df.columns:
+            if hasattr(df[col].dtype, 'name') and 'string' in str(df[col].dtype.name).lower():
+                string_columns.append(col)
+
+        if string_columns or (hasattr(df.index.dtype, 'name') and 'string' in str(df.index.dtype.name).lower()):
+            # Make a copy and convert
+            df = df.copy()
+            for col in string_columns:
+                df[col] = df[col].astype(object)
+            if hasattr(df.index.dtype, 'name') and 'string' in str(df.index.dtype.name).lower():
+                df.index = df.index.astype(object)
+
+        return df
+
     def can_convert_to_records_without_objects(self, df, symbol):
         # We can't easily distinguish string columns from objects
+        # Pre-convert any StringDtype columns to object dtype (pandas 3 compatibility)
+        df = self._convert_string_dtype_to_object(df)
+
         try:
             # TODO: we can add here instead a check based on df size and enable fast-check if sz > threshold value
             if FAST_CHECK_DF_SERIALIZABLE:
