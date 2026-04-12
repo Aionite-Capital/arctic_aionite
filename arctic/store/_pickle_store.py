@@ -94,9 +94,21 @@ class PickleStore(object):
         # it to use a maximum of protocol 4 in Python which is understood by 3.4 onwards and is still fairly efficient.
         # pickle version 4 is introduced with  python 3.4 and default with 3.8 onward
         pickle_protocol = min(pickle.HIGHEST_PROTOCOL, 4)
-        pickled = pickle.dumps(item, protocol=pickle_protocol)
+        try:
+            pickled = pickle.dumps(item, protocol=pickle_protocol)
+        except Exception as e:
+            logger.error("Failed to pickle item for symbol %s: %s: %s", symbol, type(e).__name__, str(e))
+            logger.error("Item type: %s", type(item))
+            if hasattr(item, 'dtypes'):
+                logger.error("Item dtypes: %s", item.dtypes)
+            raise
 
-        data = compress_array([pickled[i * _CHUNK_SIZE: (i + 1) * _CHUNK_SIZE] for i in range(int(len(pickled) / _CHUNK_SIZE + 1))])
+        try:
+            data = compress_array([pickled[i * _CHUNK_SIZE: (i + 1) * _CHUNK_SIZE] for i in range(int(len(pickled) / _CHUNK_SIZE + 1))])
+        except Exception as e:
+            logger.error("Failed to compress pickled data for symbol %s: %s: %s", symbol, type(e).__name__, str(e))
+            logger.error("Pickled data type: %s, length: %s", type(pickled), len(pickled))
+            raise
 
         for seg, d in enumerate(data):
             segment = {'data': Binary(d)}
