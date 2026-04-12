@@ -470,6 +470,8 @@ class SeriesSerializer(PandasSerializer):
         return Series(data, index=index, name=name)
 
     def serialize(self, item, string_max_len=None, forced_dtype=None):
+        # Convert StringDtype to object dtype before serialization (pandas 3 compatibility)
+        item = self._convert_string_dtype_to_object(item)
         return self._to_records(item, string_max_len, forced_dtype)
 
 
@@ -544,4 +546,6 @@ class DataFrameSerializer(PandasSerializer):
         return df
 
     def serialize(self, item, string_max_len=None, forced_dtype=None):
+        # Convert StringDtype to object dtype before serialization (pandas 3 compatibility)
+        item = self._convert_string_dtype_to_object(item)
         return self._to_records(item, string_max_len, forced_dtype)

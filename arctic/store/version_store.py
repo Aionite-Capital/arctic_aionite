@@ -511,15 +511,27 @@ class VersionStore(object):
         return _version
 
     def _insert_version(self, version):
+        logger.debug("Attempting to insert version document for symbol '%s', version %s",
+                    version.get('symbol'), version.get('version'))
         try:
             # Keep here the mongo_retry to avoid incrementing versions and polluting the DB with garbage segments,
             # upon intermittent Mongo errors
             # If, however, we get a DuplicateKeyError, suppress it and raise OperationFailure, so that the method-scoped
             # mongo_retry re-tries and creates a new version, to overcome the issue.
-            mongo_retry(self._versions.insert_one)(version)
+            result = mongo_retry(self._versions.insert_one)(version)
+            logger.info("Successfully inserted version document for symbol '%s', version %s (inserted_id: %s)",
+                       version.get('symbol'), version.get('version'), result.inserted_id)
         except DuplicateKeyError as err:
             logger.exception(err)
             raise OperationFailure("A version with the same _id exists, force a clean retry")
+        except Exception as e:
+            logger.error("=" * 80)
+            logger.error("CRITICAL: Failed to insert version document for symbol '%s', version %s",
+                        version.get('symbol'), version.get('version'))
+            logger.error("Error: %s: %s", type(e).__name__, str(e))
+            logger.error("Version document contents: %s", {k: v for k, v in version.items() if k not in ['blob']})
+            logger.error("=" * 80)
+            raise
 
     @mongo_retry
     def append(self, symbol, data, metadata=None, prune_previous_version=True, upsert=True, **kwargs):
