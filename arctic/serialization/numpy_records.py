@@ -45,8 +45,9 @@ def _to_primitive(arr, string_max_len=None, forced_dtype=None):
     if hasattr(arr.dtype, 'hasobject'):
         has_object = arr.dtype.hasobject
     else:
-        # For pandas 2.1+ and numpy 2.0+, check if dtype is object or string type
-        has_object = arr.dtype == np.object_ or arr.dtype.kind in ('O', 'U', 'S')
+        # For pandas 2.1+ and numpy 2.0+, only check for true object dtype
+        # Don't reject datetime64/timedelta64 or other native numpy types
+        has_object = arr.dtype == np.object_ or arr.dtype.kind == 'O'
 
     if has_object:
         if len(arr) > 0 and isinstance(arr[0], Timestamp):
@@ -294,8 +295,9 @@ class PandasSerializer(object):
             if hasattr(arr.dtype, 'hasobject'):
                 has_object = arr.dtype.hasobject
             else:
-                # For pandas 2.1+ and numpy 2.0+, check if dtype is object or string type
-                has_object = arr.dtype == np.object_ or arr.dtype.kind in ('O', 'U', 'S')
+                # For pandas 2.1+ and numpy 2.0+, only check for true object dtype
+                # Don't reject datetime64/timedelta64 or other native numpy types
+                has_object = arr.dtype == np.object_ or arr.dtype.kind == 'O'
 
             if has_object:
                 log.warning('Pandas dataframe %s contains Objects, saving as Blob' % symbol)
