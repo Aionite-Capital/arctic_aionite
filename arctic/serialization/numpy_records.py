@@ -343,21 +343,43 @@ class PandasSerializer(object):
 
     def _convert_string_dtype_to_object(self, df):
         """
-        Convert any StringDtype columns (pandas 3) to object dtype for compatibility.
-        Returns a copy if conversion is needed, otherwise returns the original DataFrame.
+        Convert any StringDtype columns/values (pandas 3) to object dtype for compatibility.
+        Handles both DataFrame and Series.
+        Returns a copy if conversion is needed, otherwise returns the original DataFrame/Series.
         """
-        string_columns = []
-        for col in df.columns:
-            if hasattr(df[col].dtype, 'name') and 'string' in str(df[col].dtype.name).lower():
-                string_columns.append(col)
+        from pandas import Series, DataFrame
 
-        if string_columns or (hasattr(df.index.dtype, 'name') and 'string' in str(df.index.dtype.name).lower()):
-            # Make a copy and convert
-            df = df.copy()
-            for col in string_columns:
-                df[col] = df[col].astype(object)
-            if hasattr(df.index.dtype, 'name') and 'string' in str(df.index.dtype.name).lower():
-                df.index = df.index.astype(object)
+        needs_conversion = False
+
+        # Check if index has StringDtype
+        index_has_string = hasattr(df.index.dtype, 'name') and 'string' in str(df.index.dtype.name).lower()
+
+        if isinstance(df, Series):
+            # For Series, check the Series values themselves
+            values_have_string = hasattr(df.dtype, 'name') and 'string' in str(df.dtype.name).lower()
+            needs_conversion = values_have_string or index_has_string
+
+            if needs_conversion:
+                df = df.copy()
+                if values_have_string:
+                    df = df.astype(object)
+                if index_has_string:
+                    df.index = df.index.astype(object)
+        elif isinstance(df, DataFrame):
+            # For DataFrame, check each column
+            string_columns = []
+            for col in df.columns:
+                if hasattr(df[col].dtype, 'name') and 'string' in str(df[col].dtype.name).lower():
+                    string_columns.append(col)
+
+            needs_conversion = bool(string_columns) or index_has_string
+
+            if needs_conversion:
+                df = df.copy()
+                for col in string_columns:
+                    df[col] = df[col].astype(object)
+                if index_has_string:
+                    df.index = df.index.astype(object)
 
         return df
 
