@@ -90,7 +90,7 @@ class BitemporalStore(object):
             existing_item = self._store.read(symbol, **kwargs)
             if metadata is None:
                 metadata = existing_item.metadata
-            df = existing_item.data.append(data).sort_index(kind='mergesort')
+            df = pd.concat([existing_item.data, data]).sort_index()
         self._store.write(symbol, df, metadata=metadata, prune_previous_version=True)
 
     def write(self, *args, **kwargs):
@@ -102,5 +102,5 @@ class BitemporalStore(object):
         index_names = list(df.index.names)
         index_names.append(self.observe_column)
         index = [x + (as_of,) if df.index.nlevels > 1 else (x, as_of) for x in df.index.tolist()]
-        df = df.set_index(pd.MultiIndex.from_tuples(index, names=index_names), inplace=False)
+        df = df.set_index(pd.MultiIndex.from_tuples(index, names=index_names))
         return df

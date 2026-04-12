@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 import pymongo
 from bson import Binary
-from pandas.compat import pickle_compat
 from pymongo.errors import OperationFailure
 
 from arctic._config import FW_POINTERS_REFS_KEY, FW_POINTERS_CONFIG_KEY, FwPointersCfg
@@ -140,9 +139,16 @@ def _define_compat_pickle_load():
     """Factory function to initialise the correct Pickle load function based on
     the Pandas version.
     """
-    if pd.__version__.startswith("0.14"):
-        return pickle.load
-    return pickle_compat.load
+    # pandas.compat.pickle_compat was removed in pandas 3.0
+    # For pandas >= 3.0, use pickle.loads directly
+    try:
+        from pandas.compat import pickle_compat
+        if pd.__version__.startswith("0.14"):
+            return pickle.load
+        return pickle_compat.loads
+    except ImportError:
+        # pandas >= 3.0
+        return pickle.loads
 
 
 def analyze_symbol(instance, sym, from_ver, to_ver, do_reads=False):
