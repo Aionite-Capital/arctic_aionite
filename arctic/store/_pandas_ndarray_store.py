@@ -152,7 +152,7 @@ class PandasSeriesStore(PandasStore):
     def can_write(self, version, symbol, data):
         if self.can_write_type(data):
             # Series has always a single-column
-            if data.dtype is NP_OBJECT_DTYPE or data.index.dtype is NP_OBJECT_DTYPE:
+            if data.dtype == NP_OBJECT_DTYPE or data.index.dtype == NP_OBJECT_DTYPE:
                 return self.SERIALIZER.can_convert_to_records_without_objects(data, symbol)
             return True
         return False
@@ -185,7 +185,9 @@ class PandasDataFrameStore(PandasStore):
 
     def can_write(self, version, symbol, data):
         if self.can_write_type(data):
-            if NP_OBJECT_DTYPE in data.dtypes.values or data.index.dtype is NP_OBJECT_DTYPE:
+            # Check if any column or the index has object dtype
+            has_object_column = any(dt == NP_OBJECT_DTYPE for dt in data.dtypes.values)
+            if has_object_column or data.index.dtype == NP_OBJECT_DTYPE:
                 return self.SERIALIZER.can_convert_to_records_without_objects(data, symbol)
             return True
         return False
@@ -220,7 +222,9 @@ class PandasPanelStore(PandasDataFrameStore):
     def can_write(self, version, symbol, data):
         if self.can_write_type(data):
             frame = data.to_frame(filter_observations=False)
-            if NP_OBJECT_DTYPE in frame.dtypes.values or (hasattr(data, 'index') and data.index.dtype is NP_OBJECT_DTYPE):
+            # Check if any column or the index has object dtype
+            has_object_column = any(dt == NP_OBJECT_DTYPE for dt in frame.dtypes.values)
+            if has_object_column or (hasattr(data, 'index') and data.index.dtype == NP_OBJECT_DTYPE):
                 return self.SERIALIZER.can_convert_to_records_without_objects(frame, symbol)
             return True
         return False
