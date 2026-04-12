@@ -314,7 +314,10 @@ class NdarrayStore(object):
         has_object = getattr(data.dtype, 'hasobject', None)
         if has_object is None:
             # For pandas 2.1+ and numpy 2.0+
-            has_object = data.dtype == np.object_ or data.dtype.kind in ('O', 'U', 'S')
+            # Only reject true object dtypes ('O'), not datetime ('M'), timedelta ('m'), or numeric types
+            # String types 'U' (Unicode) and 'S' (byte string) were previously rejected but this was too broad
+            # We can handle datetime64/timedelta64 with NaT, and numeric types with NaN
+            has_object = data.dtype == np.object_ or data.dtype.kind == 'O'
         return not has_object
 
     def _dtype(self, string, metadata=None):
@@ -426,7 +429,8 @@ class NdarrayStore(object):
             has_object = getattr(item.dtype, 'hasobject', None)
             if has_object is None:
                 # For pandas 2.1+ and numpy 2.0+
-                has_object = item.dtype == np.object_ or item.dtype.kind in ('O', 'U', 'S')
+                # Only reject true object dtypes ('O'), not datetime ('M'), timedelta ('m'), or numeric types
+                has_object = item.dtype == np.object_ or item.dtype.kind == 'O'
             if has_object:
                 raise UnhandledDtypeException()
             version['dtype'] = str(dtype)
@@ -617,7 +621,8 @@ class NdarrayStore(object):
         has_object = getattr(item.dtype, 'hasobject', None)
         if has_object is None:
             # For pandas 2.1+ and numpy 2.0+
-            has_object = item.dtype == np.object_ or item.dtype.kind in ('O', 'U', 'S')
+            # Only reject true object dtypes ('O'), not datetime ('M'), timedelta ('m'), or numeric types
+            has_object = item.dtype == np.object_ or item.dtype.kind == 'O'
         if has_object:
             raise UnhandledDtypeException()
 
