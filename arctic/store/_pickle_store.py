@@ -59,25 +59,25 @@ class PickleStore(object):
 
             try:
                 # The default encoding is ascii.
-                # Handle case where data might already be a BytesIO object
+                # pickle_compat_load can be pickle.loads (expects bytes) or pickle.load (expects file-like)
+                # In pandas 3, it's pickle.loads which expects bytes, not a file-like object
                 if isinstance(data, io.BytesIO):
-                    data.seek(0)  # Reset to beginning
-                    return pickle_compat_load(data)
-                elif isinstance(data, bytes):
-                    return pickle_compat_load(io.BytesIO(data))
-                else:
+                    # If data is BytesIO, read the bytes from it
+                    data.seek(0)
+                    data = data.read()
+
+                # Now data should be bytes
+                if not isinstance(data, bytes):
                     logger.error("Unexpected data type when unpickling symbol %s: %s", symbol, type(data))
-                    raise TypeError(f"Expected bytes or BytesIO, got {type(data)}")
+                    raise TypeError(f"Expected bytes, got {type(data)}")
+
+                return pickle_compat_load(data)
             except UnicodeDecodeError as ue:
                 # Using encoding='latin1' is required for unpickling NumPy arrays and instances of datetime, date
                 # and time pickled by Python 2: https://docs.python.org/3/library/pickle.html#pickle.load
                 logger.info("Could not Unpickle with ascii, Using latin1.")
                 encoding = kwargs.get('encoding', 'latin_1')  # Check if someone has manually specified encoding.
-                if isinstance(data, io.BytesIO):
-                    data.seek(0)
-                    return pickle_compat_load(data, encoding=encoding)
-                else:
-                    return pickle_compat_load(io.BytesIO(data), encoding=encoding)
+                return pickle_compat_load(data, encoding=encoding)
             except Exception as e:
                 logger.error("Failed to unpickle data for symbol %s: %s: %s", symbol, type(e).__name__, str(e))
                 logger.error("Data type: %s, data length: %s", type(data), len(data) if hasattr(data, '__len__') else 'unknown')
