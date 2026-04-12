@@ -60,7 +60,8 @@ def _to_primitive(arr, string_max_len=None, forced_dtype=None):
             casted_arr = np.array(list(arr))
 
         # Pick any unwanted data conversions (e.g. np.NaN to 'nan')
-        if np.array_equal(arr, casted_arr):
+        # Use equal_nan=True for numpy 2.0+ compatibility with NaT and NaN values
+        if np.array_equal(arr, casted_arr, equal_nan=True):
             return casted_arr
     return arr
 
