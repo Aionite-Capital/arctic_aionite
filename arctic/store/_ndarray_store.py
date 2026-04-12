@@ -308,12 +308,14 @@ class NdarrayStore(object):
         return isinstance(data, np.ndarray)
 
     def can_write(self, version, symbol, data):
+        if not self.can_write_type(data):
+            return False
         # hasobject was deprecated and removed in pandas 2.1+
         has_object = getattr(data.dtype, 'hasobject', None)
         if has_object is None:
             # For pandas 2.1+ and numpy 2.0+
             has_object = data.dtype == np.object_ or data.dtype.kind in ('O', 'U', 'S')
-        return self.can_write_type(data) and not has_object
+        return not has_object
 
     def _dtype(self, string, metadata=None):
         if metadata is None:
