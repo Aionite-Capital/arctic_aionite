@@ -53,6 +53,34 @@ def _to_primitive(arr, string_max_len=None, forced_dtype=None):
         if len(arr) > 0 and isinstance(arr[0], Timestamp):
             return np.array([t.value for t in arr], dtype=DTN64_DTYPE)
 
+        # Special handling for arrays containing pd.NaT mixed with other types
+        # Check if array contains NaT values (pd.NaT is pd._libs.tslibs.nattype.NaTType)
+        if len(arr) > 0:
+            try:
+                # Try to infer if this is a datetime-like array with NaT
+                # pd.NaT can appear in object arrays mixed with numbers or dates
+                from pandas._libs.tslibs.nattype import NaTType
+                has_nat = any(isinstance(x, NaTType) for x in arr)
+                if has_nat:
+                    # Convert to float64 (NaT becomes NaN in numeric context)
+                    # or try datetime64 if it looks like datetimes
+                    try:
+                        # First try datetime64 conversion
+                        casted_arr = pd.to_datetime(arr, errors='coerce').values
+                        if not np.all(pd.isna(casted_arr)):
+                            # If we successfully converted some values, use datetime64
+                            return casted_arr
+                    except:
+                        pass
+                    # Fall back to float64 (NaT and numeric values)
+                    try:
+                        casted_arr = np.array([float(x) if not pd.isna(x) else np.nan for x in arr], dtype='float64')
+                        return casted_arr
+                    except:
+                        pass
+            except (ImportError, AttributeError):
+                pass
+
         if forced_dtype is not None:
             casted_arr = arr.astype(dtype=forced_dtype, copy=False)
         elif string_max_len is not None:
@@ -298,6 +326,14 @@ class PandasSerializer(object):
                 # For pandas 2.1+ and numpy 2.0+, only check for true object dtype
                 # Don't reject datetime64/timedelta64 or other native numpy types
                 has_object = arr.dtype == np.object_ or arr.dtype.kind == 'O'
+
+                # For structured arrays, also check if any field has object dtype
+                if not has_object and arr.dtype.names is not None:
+                    for field_name in arr.dtype.names:
+                        field_dtype = arr.dtype.fields[field_name][0]
+                        if field_dtype == np.object_ or field_dtype.kind == 'O':
+                            has_object = True
+                            break
 
             if has_object:
                 log.warning('Pandas dataframe %s contains Objects, saving as Blob' % symbol)
