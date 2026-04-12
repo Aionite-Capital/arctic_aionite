@@ -61,8 +61,14 @@ def _to_primitive(arr, string_max_len=None, forced_dtype=None):
 
         # Pick any unwanted data conversions (e.g. np.NaN to 'nan')
         # Use equal_nan=True for numpy 2.0+ compatibility with NaT and NaN values
-        if np.array_equal(arr, casted_arr, equal_nan=True):
-            return casted_arr
+        try:
+            if np.array_equal(arr, casted_arr, equal_nan=True):
+                return casted_arr
+        except TypeError:
+            # For object arrays with types not supporting isnan (e.g., strings),
+            # fall back to comparison without equal_nan
+            if np.array_equal(arr, casted_arr):
+                return casted_arr
     return arr
 
 
