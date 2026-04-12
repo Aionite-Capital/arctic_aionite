@@ -39,6 +39,15 @@ def set_fast_check_df_serializable(config):
 
 
 def _to_primitive(arr, string_max_len=None, forced_dtype=None):
+    # Handle pandas 3's StringDtype - convert to object array first
+    # StringDtype arrays have a .dtype.name that contains 'string'
+    if hasattr(arr.dtype, 'name') and 'string' in str(arr.dtype.name).lower():
+        try:
+            # Convert StringDtype to numpy object array
+            arr = np.asarray(arr, dtype=object)
+        except:
+            pass
+
     # hasobject was deprecated and removed in pandas 2.1+
     # Check if dtype is object or has object-like behavior
     has_object = False

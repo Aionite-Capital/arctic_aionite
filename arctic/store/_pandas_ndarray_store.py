@@ -152,7 +152,9 @@ class PandasSeriesStore(PandasStore):
     def can_write(self, version, symbol, data):
         if self.can_write_type(data):
             # Series has always a single-column
-            if data.dtype == NP_OBJECT_DTYPE or data.index.dtype == NP_OBJECT_DTYPE:
+            # Check for object dtype or pandas 3 StringDtype
+            has_string_dtype = hasattr(data.dtype, 'name') and 'string' in str(data.dtype.name).lower()
+            if data.dtype == NP_OBJECT_DTYPE or data.index.dtype == NP_OBJECT_DTYPE or has_string_dtype:
                 return self.SERIALIZER.can_convert_to_records_without_objects(data, symbol)
             return True
         return False
@@ -185,9 +187,11 @@ class PandasDataFrameStore(PandasStore):
 
     def can_write(self, version, symbol, data):
         if self.can_write_type(data):
-            # Check if any column or the index has object dtype
+            # Check if any column or the index has object dtype or StringDtype (pandas 3)
             has_object_column = any(dt == NP_OBJECT_DTYPE for dt in data.dtypes.values)
-            if has_object_column or data.index.dtype == NP_OBJECT_DTYPE:
+            has_string_column = any(hasattr(dt, 'name') and 'string' in str(dt.name).lower()
+                                   for dt in data.dtypes.values)
+            if has_object_column or has_string_column or data.index.dtype == NP_OBJECT_DTYPE:
                 return self.SERIALIZER.can_convert_to_records_without_objects(data, symbol)
             return True
         return False
@@ -222,9 +226,11 @@ class PandasPanelStore(PandasDataFrameStore):
     def can_write(self, version, symbol, data):
         if self.can_write_type(data):
             frame = data.to_frame(filter_observations=False)
-            # Check if any column or the index has object dtype
+            # Check if any column or the index has object dtype or StringDtype (pandas 3)
             has_object_column = any(dt == NP_OBJECT_DTYPE for dt in frame.dtypes.values)
-            if has_object_column or (hasattr(data, 'index') and data.index.dtype == NP_OBJECT_DTYPE):
+            has_string_column = any(hasattr(dt, 'name') and 'string' in str(dt.name).lower()
+                                   for dt in frame.dtypes.values)
+            if has_object_column or has_string_column or (hasattr(data, 'index') and data.index.dtype == NP_OBJECT_DTYPE):
                 return self.SERIALIZER.can_convert_to_records_without_objects(frame, symbol)
             return True
         return False
