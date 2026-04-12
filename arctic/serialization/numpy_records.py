@@ -39,7 +39,16 @@ def set_fast_check_df_serializable(config):
 
 
 def _to_primitive(arr, string_max_len=None, forced_dtype=None):
-    if arr.dtype.hasobject:
+    # hasobject was deprecated and removed in pandas 2.1+
+    # Check if dtype is object or has object-like behavior
+    has_object = False
+    if hasattr(arr.dtype, 'hasobject'):
+        has_object = arr.dtype.hasobject
+    else:
+        # For pandas 2.1+ and numpy 2.0+, check if dtype is object or string type
+        has_object = arr.dtype == np.object_ or arr.dtype.kind in ('O', 'U', 'S')
+
+    if has_object:
         if len(arr) > 0 and isinstance(arr[0], Timestamp):
             return np.array([t.value for t in arr], dtype=DTN64_DTYPE)
 
@@ -273,7 +282,15 @@ class PandasSerializer(object):
                         'Saving as Blob.' % (symbol, repr(e)))
             return False
         else:
-            if arr.dtype.hasobject:
+            # hasobject was deprecated and removed in pandas 2.1+
+            has_object = False
+            if hasattr(arr.dtype, 'hasobject'):
+                has_object = arr.dtype.hasobject
+            else:
+                # For pandas 2.1+ and numpy 2.0+, check if dtype is object or string type
+                has_object = arr.dtype == np.object_ or arr.dtype.kind in ('O', 'U', 'S')
+
+            if has_object:
                 log.warning('Pandas dataframe %s contains Objects, saving as Blob' % symbol)
                 # Fall-back to saving using Pickle
                 return False
@@ -307,7 +324,7 @@ class SeriesSerializer(PandasSerializer):
 
         if force_bytes_to_unicode:
             if len(data) and isinstance(data[0], bytes):
-                data = data.astype('unicode')
+                data = data.astype(str)
 
             if isinstance(index, MultiIndex):
                 unicode_indexes = []
@@ -315,17 +332,15 @@ class SeriesSerializer(PandasSerializer):
                 for level in range(len(index.levels)):
                     _index = index.get_level_values(level)
                     if isinstance(_index[0], bytes):
-                        _index = _index.astype('unicode')
+                        _index = _index.astype(str)
                     unicode_indexes.append(_index)
                 index = unicode_indexes
             else:
                 if len(index) and type(index[0]) == bytes:
-                    index = index.astype('unicode')
+                    index = index.astype(str)
 
-        if PD_VER < '0.23.0':
-            return Series.from_array(data, index=index, name=name)
-        else:
-            return Series(data, index=index, name=name)
+        # Series.from_array() was removed in pandas 1.0+
+        return Series(data, index=index, name=name)
 
     def serialize(self, item, string_max_len=None, forced_dtype=None):
         return self._to_records(item, string_max_len, forced_dtype)
@@ -389,15 +404,15 @@ class DataFrameSerializer(PandasSerializer):
                 for level in range(len(df.index.levels)):
                     _index = df.index.get_level_values(level)
                     if isinstance(_index[0], bytes):
-                        _index = _index.astype('unicode')
+                        _index = _index.astype(str)
                     unicode_indexes.append(_index)
                 df.index = unicode_indexes
             else:
                 if type(df.index[0]) == bytes:
-                    df.index = df.index.astype('unicode')
+                    df.index = df.index.astype(str)
 
             if not df.columns.empty and type(df.columns[0]) == bytes:
-                df.columns = df.columns.astype('unicode')
+                df.columns = df.columns.astype(str)
 
         return df
 

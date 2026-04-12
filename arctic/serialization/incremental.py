@@ -78,9 +78,18 @@ class IncrementalPandasToRecArraySerializer(LazyIncrementalSerializer):
         self._lock = RLock()
 
     def _dtype_convert_to_max_len_string(self, input_ndtype, fname):
-        if input_ndtype.type not in (np.string_, np.unicode_):
+        # np.string_ and np.unicode_ removed in numpy 2.0, replaced with np.bytes_ and np.str_
+        try:
+            string_type = np.string_
+            unicode_type = np.unicode_
+        except AttributeError:
+            # numpy >= 2.0
+            string_type = np.bytes_
+            unicode_type = np.str_
+
+        if input_ndtype.type not in (string_type, unicode_type):
             return input_ndtype, False
-        type_sym = 'S' if input_ndtype.type == np.string_ else 'U'
+        type_sym = 'S' if input_ndtype.type == string_type else 'U'
         max_str_len = len(max(self.input_data[fname].astype(type_sym), key=len))
         str_field_dtype = np.dtype('{}{:d}'.format(type_sym, max_str_len)) if max_str_len > 0 else input_ndtype
         return str_field_dtype, True
