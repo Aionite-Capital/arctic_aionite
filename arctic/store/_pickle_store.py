@@ -100,9 +100,8 @@ class PickleStore(object):
                     version['data'] = item
                     return
             except InvalidDocument as e:
-                logger.warning("BSON encoding failed for symbol '%s', falling back to pickle. Error: %s",
+                logger.debug("BSON encoding failed for symbol '%s', falling back to pickle. Error: %s",
                               symbol, str(e))
-                logger.debug("Item type: %s", type(item))
                 if hasattr(item, 'dtypes'):
                     logger.debug("Item dtypes: %s", item.dtypes)
                 # Fall through to pickle path
