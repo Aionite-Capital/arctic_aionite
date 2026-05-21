@@ -676,26 +676,9 @@ class VersionStore(object):
 
         handler = self._write_handler(version, symbol, data, **kwargs)
 
-        last_exc = None
-        for attempt in range(2):
-            try:
-                handler.write(self._arctic_lib, version, symbol, data, previous_version, **kwargs)
-                break
-            except Exception as exc:
-                last_exc = exc
-                logger.warning(
-                    "Write handler attempt %s/2 failed for symbol '%s' in library '%s' using handler %s: %s: %s",
-                    attempt + 1,
-                    symbol,
-                    self._arctic_lib.get_name(),
-                    handler.__class__.__name__,
-                    type(exc).__name__,
-                    str(exc),
-                    exc_info=True,
-                )
-                if attempt < 2:
-                    time.sleep(2)
-        else:
+        try:
+            handler.write(self._arctic_lib, version, symbol, data, previous_version, **kwargs)
+        except:
             # Log a big error if the write handler fails
             logger.error("=" * 80)
             logger.error("CRITICAL WRITE FAILURE: Failed to write symbol '%s' to library '%s'",
