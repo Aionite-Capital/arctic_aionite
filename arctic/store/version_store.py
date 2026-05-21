@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime as dt, timedelta
 
 import bson
@@ -674,25 +675,38 @@ class VersionStore(object):
                                                    sort=[('version', pymongo.DESCENDING)])
 
         handler = self._write_handler(version, symbol, data, **kwargs)
-        for _ in range(3):
+
+        last_exc = None
+        for attempt in range(3):
             try:
                 handler.write(self._arctic_lib, version, symbol, data, previous_version, **kwargs)
-            except Exception as e:
-                time.sleep(2)
-            else:
                 break
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    "Write handler attempt %s/3 failed for symbol '%s' in library '%s' using handler %s: %s: %s",
+                    attempt + 1,
+                    symbol,
+                    self._arctic_lib.get_name(),
+                    handler.__class__.__name__,
+                    type(exc).__name__,
+                    str(exc),
+                    exc_info=True,
+                )
+                if attempt < 2:
+                    time.sleep(2)
         else:
             # Log a big error if the write handler fails
             logger.error("=" * 80)
             logger.error("CRITICAL WRITE FAILURE: Failed to write symbol '%s' to library '%s'",
-                        symbol, self._arctic_lib.get_name())
+                         symbol, self._arctic_lib.get_name())
             logger.error("Handler: %s", handler.__class__.__name__)
-            logger.error("Error: %s: %s", type(e).__name__, str(e))
+            logger.error("Error: %s: %s", type(last_exc).__name__, str(last_exc))
             logger.error("Data will NOT be saved! Version document will NOT be created!")
             logger.error("This means reading this symbol will fail with NoDataFoundException!")
             logger.error("=" * 80)
             # Re-raise the exception so the caller knows the write failed
-            raise
+            raise last_exc
 
         if prune_previous_version and previous_version:
             self._prune_previous_versions(
