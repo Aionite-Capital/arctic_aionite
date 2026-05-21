@@ -674,9 +674,14 @@ class VersionStore(object):
                                                    sort=[('version', pymongo.DESCENDING)])
 
         handler = self._write_handler(version, symbol, data, **kwargs)
-        try:
-            handler.write(self._arctic_lib, version, symbol, data, previous_version, **kwargs)
-        except Exception as e:
+        for _ in range(3):
+            try:
+                handler.write(self._arctic_lib, version, symbol, data, previous_version, **kwargs)
+            except Exception as e:
+                time.sleep(2)
+            else:
+                break
+        else:
             # Log a big error if the write handler fails
             logger.error("=" * 80)
             logger.error("CRITICAL WRITE FAILURE: Failed to write symbol '%s' to library '%s'",
