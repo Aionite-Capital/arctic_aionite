@@ -932,7 +932,7 @@ class VersionStore(object):
         """
         version = self._versions.find_one({'symbol': symbol, 'version': version_num})
         if not version:
-            logger.error("Can't delete %s:%s as not found in DB" % (symbol, version_num))
+            logger.info("Can't delete %s:%s as not found in DB" % (symbol, version_num))
             return
         # If the version is pointed to by a snapshot, then can't delete
         if version.get('parent', None):
