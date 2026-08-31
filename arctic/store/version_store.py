@@ -521,7 +521,7 @@ class VersionStore(object):
             # mongo_retry re-tries and creates a new version, to overcome the issue.
             result = mongo_retry(self._versions.insert_one)(version)
             logger.info("Successfully inserted version document for symbol '%s', version %s (inserted_id: %s)",
-                       version.get('symbol'), version.get('version'), result.inserted_id)
+                       version.get('symbol'), version.get('version'), getattr(result, 'inserted_id', None))
         except DuplicateKeyError as err:
             logger.exception(err)
             raise OperationFailure("A version with the same _id exists, force a clean retry")

@@ -37,13 +37,13 @@ def test_arctic_lazy_init_ssl_true():
         # do something to trigger lazy arctic init
         store.list_libraries()
         assert mc.called
-        assert len(mc.mock_calls) == 1
-        assert mc.mock_calls[0] == call(connectTimeoutMS=2000,
-                                        host='cluster',
-                                        maxPoolSize=4,
-                                        serverSelectionTimeoutMS=30000,
-                                        socketTimeoutMS=600000,
-                                        ssl=True)
+        assert mc.call_count == 1
+        assert mc.call_args == call(connectTimeoutMS=2000,
+                                    host='cluster',
+                                    maxPoolSize=4,
+                                    serverSelectionTimeoutMS=30000,
+                                    socketTimeoutMS=600000,
+                                    ssl=True)
 
 
 def test_connection_passed_warning_raised():

@@ -59,6 +59,11 @@ class FrameConverter(object):
         """
         Converts object arrays of strings to numpy string arrays
         """
+        if hasattr(a.dtype, 'name') and 'string' in str(a.dtype.name).lower():
+            a = np.asarray(a, dtype=object)
+        else:
+            a = np.asarray(a)
+
         # No conversion for scalar type
         if a.dtype != 'object':
             return a, None
@@ -144,6 +149,8 @@ class FrameConverter(object):
         Decode a Pymongo SON object into an Pandas DataFrame
         """
         cols = columns or doc[METADATA][COLUMNS]
+        if not cols:
+            return pd.DataFrame()
         data = {}
 
         for col in cols:

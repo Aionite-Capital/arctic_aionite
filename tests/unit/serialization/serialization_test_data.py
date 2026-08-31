@@ -21,11 +21,11 @@ def _mixed_test_data():
         empty_ts = pd.DataFrame()
         empty_index = create_test_data(size=0, cols=10, index=True, multiindex=False, random_data=True, random_ids=True)
 
-        with_some_objects_ts = medium_ts.copy(deep=True)
+        with_some_objects_ts = medium_ts.astype(object).copy(deep=True)
         with_some_objects_ts.iloc[0:NON_HOMOGENEOUS_DTYPE_PATCH_SIZE_ROWS, 0] = None
         with_some_objects_ts.iloc[0:NON_HOMOGENEOUS_DTYPE_PATCH_SIZE_ROWS, 1] = 'A string'
         large_with_some_objects = create_test_data(size=10000, cols=64, index=True, multiindex=False, random_data=True,
-                                                   random_ids=True, use_hours=True)
+                                                   random_ids=True, use_hours=True).astype(object)
         large_with_some_objects.iloc[0:NON_HOMOGENEOUS_DTYPE_PATCH_SIZE_ROWS, 0] = None
         large_with_some_objects.iloc[0:NON_HOMOGENEOUS_DTYPE_PATCH_SIZE_ROWS, 1] = 'A string'
 
@@ -101,7 +101,7 @@ def _mixed_test_data():
         mixed_dtypes_df['timedeltas'] = mixed_dtypes_df.dates.diff()
 
         # Multi-column with some objects
-        multi_column_with_some_objects = multi_column_no_multiindex.copy()
+        multi_column_with_some_objects = multi_column_no_multiindex.astype(object).copy()
         multi_column_with_some_objects.iloc[1:, 1:2] = 'Convert this columnt dtype to object'
 
         # Index with timezone-aware datetime

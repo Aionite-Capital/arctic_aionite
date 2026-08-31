@@ -9,8 +9,13 @@ from ._generalslice import OPEN_OPEN, CLOSED_CLOSED, OPEN_CLOSED, CLOSED_OPEN
 from ._mktz import mktz
 from ._parse import parse
 
+import numbers
+import numpy as np
+
 if sys.version_info > (3,):
     long = int
+
+_INT_TYPES = (int, long, np.integer, numbers.Integral)
 
 
 # Support standard brackets syntax for open/closed ranges.
@@ -102,7 +107,7 @@ def to_dt(date, default_tz=None):
     -------
     Non-naive datetime
     """
-    if isinstance(date, (int, long)):
+    if isinstance(date, _INT_TYPES):
         return ms_to_datetime(date, default_tz)
     elif date.tzinfo is None:
         if default_tz is None:
@@ -147,13 +152,13 @@ def to_pandas_closed_closed(date_range, add_tz=True):
 
 def ms_to_datetime(ms, tzinfo=None):
     """Convert a millisecond time value to an offset-aware Python datetime object."""
-    if not isinstance(ms, (int, long)):
+    if not isinstance(ms, _INT_TYPES):
         raise TypeError('expected integer, not %s' % type(ms))
 
     if tzinfo is None:
         tzinfo = mktz()
 
-    return datetime.datetime.fromtimestamp(ms * 1e-3, tzinfo)
+    return datetime.datetime.fromtimestamp(float(ms) * 1e-3, tzinfo)
 
 
 def _add_tzone(dtm):

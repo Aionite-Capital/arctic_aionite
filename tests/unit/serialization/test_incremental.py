@@ -95,7 +95,7 @@ def test_serialize_incremental_chunk_size_pandas_to_recarray(input_df_descr):
         chunk_size = div * 8 * 1024 ** 2
         if input_df_descr is not None and len(expectation) > 0:
             row_size = int(expectation[0].dtype.itemsize)
-            chunk_size = NON_HOMOGENEOUS_DTYPE_PATCH_SIZE_ROWS * row_size / div
+            chunk_size = int(max(NON_HOMOGENEOUS_DTYPE_PATCH_SIZE_ROWS, len(df) // (div * 20)) * row_size)
         incr_ser = IncrementalPandasToRecArraySerializer(df_serializer, df, chunk_size=chunk_size)
         chunk_bytes = [chunk for chunk, _, _, _ in incr_ser.generator_bytes()]
         matching = expectation[0].tobytes() == b''.join(chunk_bytes)

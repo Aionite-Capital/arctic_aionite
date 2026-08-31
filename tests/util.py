@@ -41,10 +41,26 @@ def dt_or_str_parser(string):
 
 def read_str_as_pandas(ts_str, num_index=1):
     labels = [x.strip() for x in ts_str.split('\n')[0].split('|')]
-    pd = pandas.read_csv(stringio.StringIO(ts_str), sep='|', index_col=list(range(num_index)), date_parser=dt_or_str_parser)
+    try:
+        pd = pandas.read_csv(stringio.StringIO(ts_str), sep='|', index_col=list(range(num_index)), date_parser=dt_or_str_parser)
+    except TypeError:
+        pd = pandas.read_csv(stringio.StringIO(ts_str), sep='|', index_col=list(range(num_index)))
+        if num_index == 1:
+            try:
+                pd.index = [dt_or_str_parser(x) if isinstance(x, str) else x for x in pd.index]
+            except Exception:
+                pass
+        else:
+            new_levels = []
+            for lvl in pd.index.levels:
+                try:
+                    new_levels.append([dt_or_str_parser(x) if isinstance(x, str) else x for x in lvl])
+                except Exception:
+                    new_levels.append(lvl)
+            pd.index = pd.index.set_levels(new_levels)
     # Trim the whitespace on the column names
-    pd.columns = labels[num_index:]
-    pd.index.names = labels[0:num_index]
+    pd.columns = [c.strip() if isinstance(c, str) else c for c in labels[num_index:]]
+    pd.index.names = [c.strip() if isinstance(c, str) else c for c in labels[0:num_index]]
     return pd
 
 

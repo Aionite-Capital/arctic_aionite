@@ -152,9 +152,14 @@ def consistent_get_timezone_str(tz: Union[datetime.tzinfo, str]) -> str:
     if PD_VER < "1.3.0":
         return str(get_timezone(tz))
 
-    # Special case for `dateutil.tz.gettz("UTC")` to ensure we always return a 'dateutil/...' string:
-    if is_utc(tz) and treat_tz_as_dateutil(tz):
-        return "dateutil/" + tz._filename
+    # Special case for `dateutil.tz.gettz(...)` to ensure we always return a 'dateutil/...' string:
+    if treat_tz_as_dateutil(tz):
+        filename = getattr(tz, '_filename', None)
+        if filename:
+            return "dateutil/" + filename
+        zone = getattr(tz, 'zone', None) or getattr(tz, '_name', None) or getattr(tz, 'name', None)
+        if zone:
+            return "dateutil/" + str(zone)
 
     return str(get_timezone(tz))
 
@@ -349,7 +354,8 @@ class PandasSerializer(object):
         """
         from pandas import Series, DataFrame
 
-        needs_conversion = False
+        if not isinstance(df, (Series, DataFrame)):
+            return df
 
         # Check if index has StringDtype
         index_has_string = hasattr(df.index.dtype, 'name') and 'string' in str(df.index.dtype.name).lower()

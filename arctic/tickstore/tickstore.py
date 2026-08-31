@@ -666,7 +666,7 @@ class TickStore(object):
                 # `string` in python2 and `bytes` in python3
                 raise UnhandledDtypeException("Casting object column to string failed")
             try:
-                array = array.astype(np.unicode_)
+                array = array.astype(str)
             except (UnicodeDecodeError, SystemError):
                 # `UnicodeDecodeError` in python2 and `SystemError` in python3
                 array = np.array([s.decode('utf-8') for s in array])
@@ -724,11 +724,11 @@ class TickStore(object):
                 DTYPE: TickStore._str_dtype(array.dtype),
             }
             rtn[COLUMNS][col] = col_data
+        idx_arr = np.asarray(pd.to_datetime(recs[index_name]).values, dtype='datetime64[ms]').view('uint64')
         rtn[INDEX] = Binary(
             lz4_compressHC(np.concatenate(
-                ([recs[index_name][0].astype('datetime64[ms]').view('uint64')],
-                 np.diff(
-                     recs[index_name].astype('datetime64[ms]').view('uint64')))).tobytes()))
+                ([idx_arr[0]],
+                 np.diff(idx_arr))).tobytes()))
         return rtn, final_image
 
     @staticmethod

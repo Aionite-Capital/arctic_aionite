@@ -117,12 +117,12 @@ def test_can_convert_to_records_without_objects_returns_true_otherwise(fast_seri
         ("UTC", r"^UTC$"),
         (pytz.utc, r"^UTC$"),
         (dateutil.tz.tzutc(), r"^UTC$"),
-        (dateutil.tz.gettz("UTC"), r"^dateutil/.+UTC"),
+        (dateutil.tz.gettz("UTC"), r"^(dateutil/.*UTC|tzwin\('UTC'\))$"),
         *([(datetime.timezone.utc, r"^UTC$")] if hasattr(datetime, "timezone") else []),
         (pytz.timezone("Europe/London"), r"^Europe/London$"),
         (pytz.timezone("America/New_York"), r"^America/New_York$"),
-        (dateutil.tz.gettz("Europe/London"), r"^dateutil/.+Europe/London"),
-        (dateutil.tz.gettz("America/New_York"), r"^dateutil/.+America/New_York"),
+        (dateutil.tz.gettz("Europe/London"), r"^(dateutil/.*(Europe/London|GB-Eire)|tzwin.*)$"),
+        (dateutil.tz.gettz("America/New_York"), r"^(dateutil/.*America/New_York|tzwin.*)$"),
     ],
 )
 @pytest.mark.parametrize("index_nlevels", [1, 2])
@@ -193,22 +193,22 @@ def test_can_convert_to_records_mixed_object_column_string_nan(fast_serializable
         df = pd.DataFrame({'a': [1, 3, 4], 'b': [1, 8.0, 2]})
         assert serializer.can_convert_to_records_without_objects(df, 'my_symbol')
 
-        df = pd.DataFrame({'a': [1, 3, 4], 'b': [1.2, 8.0, np.NaN]})
+        df = pd.DataFrame({'a': [1, 3, 4], 'b': [1.2, 8.0, np.nan]})
         assert serializer.can_convert_to_records_without_objects(df, 'my_symbol')
 
-        df = pd.DataFrame({'a': ['abc', 'cde', 'def'], 'b': [1.2, 8.0, np.NaN]})
+        df = pd.DataFrame({'a': ['abc', 'cde', 'def'], 'b': [1.2, 8.0, np.nan]})
         assert serializer.can_convert_to_records_without_objects(df, 'my_symbol')
 
-        df = pd.DataFrame({'a': [u'abc', u'cde', 'def'], 'b': [1.2, 8.0, np.NaN]})
+        df = pd.DataFrame({'a': [u'abc', u'cde', 'def'], 'b': [1.2, 8.0, np.nan]})
         assert serializer.can_convert_to_records_without_objects(df, 'my_symbol')
 
-        df = pd.DataFrame({'a': [u'abc', u'cde', 'def'], 'b': [1.2, '8.0', np.NaN]})
+        df = pd.DataFrame({'a': [u'abc', u'cde', 'def'], 'b': [1.2, '8.0', np.nan]})
         assert not serializer.can_convert_to_records_without_objects(df, 'my_symbol')
 
         # Do not serialize and force-stringify None
-        df = pd.DataFrame({'a': ['abc', None, 'def'], 'b': [1.2, 8.0, np.NaN]})
+        df = pd.DataFrame({'a': ['abc', None, 'def'], 'b': [1.2, 8.0, np.nan]})
         assert not serializer.can_convert_to_records_without_objects(df, 'my_symbol')
 
-        # Do not serialize and force-stringify np.NaN among strings, rather pickle
-        df = pd.DataFrame({'a': ['abc', np.NaN, 'def'], 'b': [1.2, 8.0, np.NaN]})
+        # Do not serialize and force-stringify np.nan among strings, rather pickle
+        df = pd.DataFrame({'a': ['abc', np.nan, 'def'], 'b': [1.2, 8.0, np.nan]})
         assert not serializer.can_convert_to_records_without_objects(df, 'my_symbol')

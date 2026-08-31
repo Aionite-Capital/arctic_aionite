@@ -12,7 +12,7 @@ def test_versioned_item_str():
                          metadata={'metadata': 'foo'})
 
     expected = "VersionedItem(symbol=sym,library=ONEMINUTE," + \
-               "data=<class 'pandas.core.frame.DataFrame'>,version=1.0,metadata={'metadata': 'foo'},host=myhost)"
+               f"data={type(pd.DataFrame())},version=1.0,metadata={{'metadata': 'foo'}},host=myhost)"
     assert str(item) == expected
     assert repr(item) == expected
 
